@@ -1,0 +1,46 @@
+name: Build Windows editor
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'код/tensor.py'
+      - '.github/workflows/windows-build.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          architecture: x64
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install numpy pillow pyinstaller
+          python -m pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+
+      - name: Build console application
+        run: python -m PyInstaller --noconfirm --clean --onedir --console --name PhotoEditor "код/tensor.py"
+
+      - name: Check application starts and exits
+        shell: pwsh
+        run: |
+          "6" | & .\dist\PhotoEditor\PhotoEditor.exe
+          if ($LASTEXITCODE -ne 0) { throw "Application failed to start or exit" }
+
+      - name: Upload Windows application
+        uses: actions/upload-artifact@v4
+        with:
+          name: PhotoEditor-Windows-x64
+          path: dist/PhotoEditor/
+          if-no-files-found: error
+          retention-days: 14
